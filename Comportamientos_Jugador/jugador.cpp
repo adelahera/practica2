@@ -24,15 +24,25 @@ Action ComportamientoJugador::think(Sensores sensores)
 	// Capturo los destinos
 	cout << "sensores.num_destinos : " << sensores.num_destinos << endl;
 	objetivos.clear();
-	for (int i = 0; i < sensores.num_destinos; i++)
-	{
+	for (int i = 0; i < sensores.num_destinos; i++){
 		estado aux;
 		aux.fila = sensores.destino[2 * i];
 		aux.columna = sensores.destino[2 * i + 1];
 		objetivos.push_back(aux);
 	}
 
-	bool hay_plan = pathFinding(sensores.nivel, actual, objetivos, plan);
+	if(!hayPlan){
+		hayPlan = pathFinding(sensores.nivel, actual, objetivos, plan);
+	}
+
+	if(hayPlan and plan.size() > 0){
+
+		accion = plan.front();
+		plan.erase(plan.begin());
+	}
+	else {
+		cout << "No se pudo encontrar un plan " << endl;
+	}
 
 	return accion;
 }
