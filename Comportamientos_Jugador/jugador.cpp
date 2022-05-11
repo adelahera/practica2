@@ -53,7 +53,7 @@ Action ComportamientoJugador::think(Sensores sensores)
 bool ComportamientoJugador::pathFinding(int level, const estado &origen, const list<estado> &destino, list<Action> &plan)
 {
 	switch (level){
-		
+
 	case 0:
 		cout << "Demo\n";
 		estado un_objetivo;
@@ -63,7 +63,6 @@ bool ComportamientoJugador::pathFinding(int level, const estado &origen, const l
 		break;
 
 	case 1:
-
 		cout << "Optimo numero de acciones\n";
 		estado obj;
 		obj = objetivos.front();
@@ -343,6 +342,12 @@ bool ComportamientoJugador::pathFinding_Anchura(const estado &origen, const esta
 			{
 				hijoForward.secuencia.push_back(actFORWARD);
 				Abiertos.push(hijoForward);
+
+				if(hijoForward.st.fila == destino.fila && hijoForward.st.columna == destino.columna){
+
+					current = hijoForward;
+					break;
+				}
 			}
 		}
 
