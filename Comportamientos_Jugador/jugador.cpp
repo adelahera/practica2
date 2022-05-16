@@ -13,7 +13,6 @@
 Action ComportamientoJugador::think(Sensores sensores)
 {
 
-	cout << "dios" << endl;
 	Action accion = actIDLE;
 
 	actual.fila = sensores.posF;
@@ -72,7 +71,7 @@ Action ComportamientoJugador::think(Sensores sensores)
 
 			destino = obtenerDestino();
 			cout << "el destino nuevo es " << destino.fila << destino.columna << endl;
-			hayPlan = pathFinding_AEstrella_migue(actual, destino, plan);
+			hayPlan = pathFinding_AEstrella(actual, destino, plan);
 			
 		}
 

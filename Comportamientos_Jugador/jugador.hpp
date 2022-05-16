@@ -54,8 +54,6 @@ class ComportamientoJugador : public Comportamiento {
     bool pathFinding_Anchura(const estado &origen, const estado &destino, list<Action> &plan);
     bool pathFinding_Costeuniforme(const estado &origen, const estado &destino, list<Action> &plan);
     bool pathFinding_AEstrella(const estado &origen, const estado &destino, list<Action> &plan);
-    bool pathFinding_AEstrella_migue(const estado &origen, const estado &destino, list<Action> &plan);
-
 
     void PintaPlan(list<Action> plan);
     estado obtenerDestino();
