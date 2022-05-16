@@ -46,7 +46,6 @@ class ComportamientoJugador : public Comportamiento {
     bool tengoBikini;
     bool tengoZapatillas;
     int i, j;
-    int contador;
 
     // Métodos privados de la clase
     bool pathFinding(int level, const estado &origen, const list<estado> &destino, list<Action> &plan);

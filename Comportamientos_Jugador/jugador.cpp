@@ -12,6 +12,8 @@
 // Para ver los distintos sensores mirar fichero "comportamiento.hpp"
 Action ComportamientoJugador::think(Sensores sensores)
 {
+
+	cout << "dios" << endl;
 	Action accion = actIDLE;
 
 	actual.fila = sensores.posF;
