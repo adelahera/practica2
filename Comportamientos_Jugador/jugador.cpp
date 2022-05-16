@@ -64,25 +64,29 @@ Action ComportamientoJugador::think(Sensores sensores)
 	}
 	else {
 
-		estado destino;
-
 		if(!hayPlan) {
 
-			cout << " antes del plan " << endl;
+			destino_anterior.fila = destino.fila;
+			destino_anterior.columna = destino.columna;
+			cout << "el destino anterior es " << destino_anterior.fila << destino_anterior.columna << endl;
 			destino = obtenerDestino();
-			cout << " tengo plan " << endl;
-			hayPlan = pathFinding_AEstrella_migue(actual, destino, plan);
-			cout << " llamo al algoritmo " << endl;
-		}
+			cout << "el destino nuevo es " << destino.fila << destino.columna << endl;
 
-		cout << "hasta aqui " << endl;
+			if(destino.fila == destino_anterior.fila && destino.columna == destino_anterior.columna){
+
+				destino = obtenerDestinoAleatorio();
+				cout << "destino aleatorio" << endl;
+			}
+
+			hayPlan = pathFinding_AEstrella_migue(actual, destino, plan);
+			
+
+		}
 
 		if(hayPlan and plan.size() > 0){
 
 			// if(puedoAvanzar(sensores, actual) || cambioPlan) {
 
-				cout << "puedo avanzar" << endl;
-				cout << "saco la accion del plan" << endl;
 				accion = plan.front();
 				plan.erase(plan.begin());	
 				cambioPlan = false;			
@@ -90,11 +94,8 @@ Action ComportamientoJugador::think(Sensores sensores)
 			
 			if(!puedoAvanzar(sensores, actual) && accion == actFORWARD) {
 
-				cout << "no puedo avanzar" << endl;
-				cout << " tengo plan " << hayPlan << endl;
 				accion = actIDLE;
 				hayPlan = false;
-				cout << " tengo plan " << hayPlan << endl;
 				plan.clear();
 				cambioPlan = true;
 			}
@@ -423,8 +424,7 @@ struct ComparaFn{
 // Implementación de la busqueda en profundidad.
 // Entran los puntos origen y destino y devuelve la
 // secuencia de acciones en plan, una lista de acciones.
-bool ComportamientoJugador::pathFinding_Profundidad(const estado &origen, const estado &destino, list<Action> &plan)
-{
+bool ComportamientoJugador::pathFinding_Profundidad(const estado &origen, const estado &destino, list<Action> &plan){
 	// Borro la lista
 	cout << "Calculando plan\n";
 	plan.clear();
@@ -517,8 +517,7 @@ bool ComportamientoJugador::pathFinding_Profundidad(const estado &origen, const 
 	return false;
 }
 
-bool ComportamientoJugador::pathFinding_Anchura(const estado &origen, const estado &destino, list<Action> &plan)
-{
+bool ComportamientoJugador::pathFinding_Anchura(const estado &origen, const estado &destino, list<Action> &plan){
 	// Borro la lista
 	cout << "Calculando plan\n";
 	plan.clear();
@@ -897,19 +896,13 @@ bool ComportamientoJugador::pathFinding_AEstrella_migue(const estado &origen, co
 
 	Abiertos.push(current);
 
-	cout << "Empiezo con el algoritmo" <<endl;
-	cout << "-->Objetivo fila " << destino.fila << endl;
-	cout << "-->Objetivo columna " << destino.columna << endl;
-
 	while (!Abiertos.empty() and (current.st.fila != destino.fila or current.st.columna != destino.columna))
 	{
 		//cout << "Primera comprobacion" << endl;
 		if(!Abiertos.empty()){
 			Abiertos.pop();
 		}
-		if(Abiertos.empty()){
-			cout << "Saluda tirado " <<endl;
-		}
+
 		if (Cerrados.find(current.st)== Cerrados.end()){
 			Cerrados.insert(current.st);
 		}
@@ -1045,8 +1038,7 @@ bool ComportamientoJugador::pathFinding_AEstrella_migue(const estado &origen, co
 
 
 // Sacar por la consola la secuencia del plan obtenido
-void ComportamientoJugador::PintaPlan(list<Action> plan)
-{
+void ComportamientoJugador::PintaPlan(list<Action> plan){
 	auto it = plan.begin();
 	while (it != plan.end())
 	{
@@ -1247,6 +1239,16 @@ bool ComportamientoJugador::puedoAvanzar(Sensores sensores, estado &st) {
 	// return (sensores.terreno[2] != 'P' and sensores.terreno[2] != 'M' and (sensores.terreno[2] != 'B' or tengoZapatillas) and (sensores.terreno[2] != 'A' or tengoBikini));
 }
 
+estado ComportamientoJugador::obtenerDestinoAleatorio(){
+
+	estado salida;
+
+		salida.fila = rand() % (mapaResultado.size() -1);
+		salida.columna = rand() % (mapaResultado[0].size()-1);	
+
+	return salida;
+}
+
 estado ComportamientoJugador::obtenerDestino() {
 
 	estado salida;
@@ -1262,17 +1264,10 @@ estado ComportamientoJugador::obtenerDestino() {
 				encontrado = true;
 			}
 		}
-
 	}
 
-	if(!encontrado) {
-			salida.fila = rand() % (mapaResultado.size() -1);
-			salida.columna = rand() % (mapaResultado[0].size()-1);
-
-	}
-
-	// salida.fila = rand() % (mapaResultado.size() -1);
-	// salida.columna = rand() % (mapaResultado[0].size()-1);
+	if(!encontrado) 
+			salida = obtenerDestinoAleatorio();
 
 	cout << "mi destino es fila " << salida.fila << " columna " << salida.columna << endl;
 

@@ -38,6 +38,8 @@ class ComportamientoJugador : public Comportamiento {
   private:
     // Declarar Variables de Estado
     estado actual;
+    estado destino;
+		estado destino_anterior;
     list<estado> objetivos;
     list<Action> plan;
     bool hayPlan;
@@ -58,6 +60,7 @@ class ComportamientoJugador : public Comportamiento {
 
     void PintaPlan(list<Action> plan);
     estado obtenerDestino();
+    estado obtenerDestinoAleatorio();
     void pintarMapa(Sensores sensores, estado & st);
     bool HayObstaculoDelante(estado &st);
     int calcularCoste(estado &st, Action accion);
