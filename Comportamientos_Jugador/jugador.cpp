@@ -22,28 +22,91 @@ Action ComportamientoJugador::think(Sensores sensores)
 	cout << "Col : " << actual.columna << endl;
 	cout << "Ori : " << actual.orientacion << endl;
 
-	// Capturo los destinos
-	cout << "sensores.num_destinos : " << sensores.num_destinos << endl;
-	objetivos.clear();
-	for (int i = 0; i < sensores.num_destinos; i++){
-		estado aux;
-		aux.fila = sensores.destino[2 * i];
-		aux.columna = sensores.destino[2 * i + 1];
-		objetivos.push_back(aux);
+	pintarMapa(sensores, actual);
+
+	if(sensores.terreno[0] == 'K') {
+
+		tengoBikini = true;
+		tengoZapatillas = false;
 	}
 
-	if(!hayPlan){
-		hayPlan = pathFinding(sensores.nivel, actual, objetivos, plan);
+	if(sensores.terreno[0] == 'D'){
+
+		tengoBikini = false;
+		tengoZapatillas = true;
 	}
 
-	if(hayPlan and plan.size() > 0){
+	if(sensores.nivel < 3) {
 
-		accion = plan.front();
-		plan.erase(plan.begin());
+		// Capturo los destinos
+		cout << "sensores.num_destinos : " << sensores.num_destinos << endl;
+		objetivos.clear();
+		for (int i = 0; i < sensores.num_destinos; i++){
+			estado aux;
+			aux.fila = sensores.destino[2 * i];
+			aux.columna = sensores.destino[2 * i + 1];
+			objetivos.push_back(aux);
+		}
+
+		if(!hayPlan){
+			hayPlan = pathFinding(sensores.nivel, actual, objetivos, plan);
+		}
+
+		if(hayPlan and plan.size() > 0){
+
+			accion = plan.front();
+			plan.erase(plan.begin());
+		}
+		else {
+			cout << "No se pudo encontrar un plan " << endl;
+			
+		}
 	}
 	else {
-		cout << "No se pudo encontrar un plan " << endl;
+
+		estado destino;
+
+		if(!hayPlan) {
+
+			cout << " antes del plan " << endl;
+			destino = obtenerDestino();
+			cout << " tengo plan " << endl;
+			hayPlan = pathFinding_AEstrella_migue(actual, destino, plan);
+			cout << " llamo al algoritmo " << endl;
+		}
+
+		cout << "hasta aqui " << endl;
+
+		if(hayPlan and plan.size() > 0){
+
+			// if(puedoAvanzar(sensores, actual) || cambioPlan) {
+
+				cout << "puedo avanzar" << endl;
+				cout << "saco la accion del plan" << endl;
+				accion = plan.front();
+				plan.erase(plan.begin());	
+				cambioPlan = false;			
+			// }
+			
+			if(!puedoAvanzar(sensores, actual) && accion == actFORWARD) {
+
+				cout << "no puedo avanzar" << endl;
+				cout << " tengo plan " << hayPlan << endl;
+				accion = actIDLE;
+				hayPlan = false;
+				cout << " tengo plan " << hayPlan << endl;
+				plan.clear();
+				cambioPlan = true;
+			}
+
+		}
+		else {
+			cout << "No se pudo encontrar un plan " << endl;
+			hayPlan = false;
+		}
+
 	}
+
 
 	return accion;
 }
@@ -67,7 +130,7 @@ bool ComportamientoJugador::pathFinding(int level, const estado &origen, const l
 		estado obj;
 		obj = objetivos.front();
 		cout << "fila: " << obj.fila << " col:" << obj.columna << endl;
-		return pathFinding_Anchura(origen, obj, plan);	
+		return pathFinding_Anchura(origen, obj, plan);
 		break;
 
 	case 2:
@@ -75,7 +138,8 @@ bool ComportamientoJugador::pathFinding(int level, const estado &origen, const l
 		estado otro_obj;
 		otro_obj = objetivos.front();
 		cout << "fila: " << otro_obj.fila << " col:" << otro_obj.columna << endl;
-		return pathFinding_Costeuniforme(origen, otro_obj, plan);	
+		return pathFinding_Costeuniforme(origen, otro_obj, plan);
+	
 		break;
 
 	case 3:
@@ -310,6 +374,10 @@ int ComportamientoJugador::calcularCoste(estado &st, Action accion) {
 	return coste;
 }
 
+int ComportamientoJugador::heuristica(const estado &orig, const estado &dst) {
+	return max(abs(orig.fila - dst.fila), abs(orig.columna - dst.columna));
+}
+
 struct nodo
 {
 	estado st;
@@ -335,6 +403,17 @@ struct ComparaCoste{
 	bool operator()(const nodo &a, const nodo &n) const
 	{
 		if (a.st.coste > n.st.coste) 
+			return true;
+		else
+			return false;
+	}	
+};
+
+struct ComparaFn{
+
+	bool operator()(const nodo &a, const nodo &n) const
+	{
+		if (a.st.fn > n.st.fn) 
 			return true;
 		else
 			return false;
@@ -664,6 +743,307 @@ bool ComportamientoJugador::pathFinding_Costeuniforme(const estado &origen, cons
 
 }
 
+bool ComportamientoJugador::pathFinding_AEstrella(const estado &origen, const estado &destino, list<Action> &plan) {
+
+	// Borro la lista
+	cout << "Calculando plan\n";
+	plan.clear();
+	set<estado, ComparaEstados> Cerrados; // Lista de Cerrados
+	priority_queue<nodo, vector<nodo>, ComparaFn> Abiertos;				  // Lista de Abiertos
+
+	nodo current;
+	current.st = origen;
+	current.secuencia.empty();
+	current.st.coste = 0;
+	current.st.fn = current.st.coste + heuristica(origen, destino);
+	current.st.bikini = tengoBikini;
+	current.st.zapatillas = tengoZapatillas;
+
+	cout << " probando " << endl;
+	cout << current.st.bikini << endl;
+	cout << current.st.zapatillas << endl;
+
+	Abiertos.push(current);	
+
+	while (!Abiertos.empty() and (current.st.fila != destino.fila or current.st.columna != destino.columna))
+	{
+
+		Abiertos.pop();
+
+		if(Cerrados.find(current.st) == Cerrados.end())
+			Cerrados.insert(current.st);
+
+		if(mapaResultado[current.st.fila][current.st.columna] == 'K'){
+			current.st.bikini = true;
+			current.st.zapatillas = false;
+		}
+
+		if(mapaResultado[current.st.fila][current.st.columna] == 'D'){
+			current.st.bikini = false;
+			current.st.zapatillas = true;
+		}
+
+		// Generar descendiente de girar a la derecha 90 grados
+		nodo hijoTurnR = current;
+		hijoTurnR.st.orientacion = (hijoTurnR.st.orientacion + 2) % 8;
+		hijoTurnR.st.coste += calcularCoste(hijoTurnR.st, actTURN_R);
+		hijoTurnR.st.fn = hijoTurnR.st.coste + heuristica(origen, destino);
+		if (Cerrados.find(hijoTurnR.st) == Cerrados.end())
+		{
+			hijoTurnR.secuencia.push_back(actTURN_R);
+			Abiertos.push(hijoTurnR);
+		}
+
+		// Generar descendiente de girar a la derecha 45 grados
+		nodo hijoSEMITurnR = current;
+		hijoSEMITurnR.st.orientacion = (hijoSEMITurnR.st.orientacion + 1) % 8;
+		hijoSEMITurnR.st.coste += calcularCoste(hijoSEMITurnR.st, actSEMITURN_R);
+		hijoSEMITurnR.st.fn = hijoSEMITurnR.st.coste + heuristica(origen, destino);
+		if (Cerrados.find(hijoSEMITurnR.st) == Cerrados.end())
+		{
+			hijoSEMITurnR.secuencia.push_back(actSEMITURN_R);
+			Abiertos.push(hijoSEMITurnR);
+		}
+
+		// Generar descendiente de girar a la izquierda 90 grados
+		nodo hijoTurnL = current;
+		hijoTurnL.st.orientacion = (hijoTurnL.st.orientacion + 6) % 8;
+		hijoTurnL.st.coste += calcularCoste(hijoTurnL.st, actTURN_L);
+		hijoTurnL.st.fn = hijoTurnL.st.coste + heuristica(origen, destino);
+		if (Cerrados.find(hijoTurnL.st) == Cerrados.end())
+		{
+			hijoTurnL.secuencia.push_back(actTURN_L);
+			Abiertos.push(hijoTurnL);
+		}
+
+		// Generar descendiente de girar a la izquierda 45 grados
+		nodo hijoSEMITurnL = current;
+		hijoSEMITurnL.st.orientacion = (hijoSEMITurnL.st.orientacion + 7) % 8;
+		hijoSEMITurnL.st.coste += calcularCoste(hijoSEMITurnL.st, actSEMITURN_L);
+		hijoSEMITurnL.st.fn = hijoSEMITurnL.st.coste + heuristica(origen, destino);
+		if (Cerrados.find(hijoSEMITurnL.st) == Cerrados.end())
+		{
+			hijoSEMITurnL.secuencia.push_back(actSEMITURN_L);
+			Abiertos.push(hijoSEMITurnL);
+		}
+
+		// Generar descendiente de avanzar
+		nodo hijoForward = current;
+		if (!HayObstaculoDelante(hijoForward.st))
+		{
+			hijoForward.st.coste += calcularCoste(hijoForward.st, actFORWARD);
+			hijoForward.st.fn = hijoForward.st.coste + heuristica(origen, destino);
+			if (Cerrados.find(hijoForward.st) == Cerrados.end())
+			{	
+				hijoForward.secuencia.push_back(actFORWARD);
+				Abiertos.push(hijoForward);
+
+				// if(hijoForward.st.fila == destino.fila && hijoForward.st.columna == destino.columna){
+
+				// 	current = hijoForward;
+				// 	break;
+				// }
+			}
+		}
+
+		// Tomo el siguiente valor de la Abiertos
+		if (!Abiertos.empty())
+		{
+			current = Abiertos.top();
+			while(Cerrados.find(current.st) != Cerrados.end()){
+				Abiertos.pop();
+				current = Abiertos.top();
+			}
+		}
+	}
+
+	cout << "Terminada la busqueda\n";
+
+	if (current.st.fila == destino.fila and current.st.columna == destino.columna)
+	{
+		cout << "Cargando el plan\n";
+		plan = current.secuencia;
+		cout << "Longitud del plan: " << plan.size() << endl;
+		PintaPlan(plan);
+		// ver el plan en el mapa
+		VisualizaPlan(origen, plan);
+		return true;
+	}
+	else
+	{
+		cout << "No encontrado plan\n";
+	}
+
+	return false;
+}
+
+bool ComportamientoJugador::pathFinding_AEstrella_migue(const estado &origen, const estado &destino, list<Action> &plan) {
+
+	// Borro la lista
+	cout << "Calculando plan\n";
+	plan.clear();
+	
+	set<estado, ComparaEstados> Cerrados; // Lista de Cerrados
+	priority_queue<nodo, vector<nodo>, ComparaFn> Abiertos;		  // Lista de Abiertos
+
+	nodo current;
+	current.st = origen;
+	current.secuencia.empty();
+	current.st.bikini = tengoBikini;
+	current.st.zapatillas = tengoZapatillas;
+
+	current.st.coste = calcularCoste(current.st, actIDLE);
+	current.st.fn = current.st.coste + heuristica(origen,destino);
+
+	Abiertos.push(current);
+
+	cout << "Empiezo con el algoritmo" <<endl;
+	cout << "-->Objetivo fila " << destino.fila << endl;
+	cout << "-->Objetivo columna " << destino.columna << endl;
+
+	while (!Abiertos.empty() and (current.st.fila != destino.fila or current.st.columna != destino.columna))
+	{
+		//cout << "Primera comprobacion" << endl;
+		if(!Abiertos.empty()){
+			Abiertos.pop();
+		}
+		if(Abiertos.empty()){
+			cout << "Saluda tirado " <<endl;
+		}
+		if (Cerrados.find(current.st)== Cerrados.end()){
+			Cerrados.insert(current.st);
+		}
+		if(mapaResultado[current.st.fila][current.st.columna] == 'K'){
+			
+			current.st.bikini = true;
+			current.st.zapatillas = false;
+
+
+			//if(current.st.zapatillas)
+			//	current.st.zapatillas = false;
+		}
+
+		if(mapaResultado[current.st.fila][current.st.columna] == 'D'){
+			
+			current.st.zapatillas = true;
+			current.st.bikini = false;
+
+			//if(current.st.bikini)
+			//	current.st.bikini = false;
+		}
+
+		//cout << "Segunda comprobacion" << endl;
+		// Generar descendiente de girar a la derecha 90 grados
+		nodo hijoTurnR = current;
+		hijoTurnR.st.orientacion = (hijoTurnR.st.orientacion + 2) % 8;
+
+		hijoTurnR.st.coste += calcularCoste(hijoTurnR.st,actTURN_R);
+		hijoTurnR.st.fn = hijoTurnR.st.coste + heuristica(origen,destino);
+
+		if (Cerrados.find(hijoTurnR.st) == Cerrados.end())
+		{
+			hijoTurnR.secuencia.push_back(actTURN_R);
+			Abiertos.push(hijoTurnR);
+		}
+
+		//cout << "Tercera comprobacion" << endl;
+		// Generar descendiente de girar a la derecha 45 grados
+		nodo hijoSEMITurnR = current;
+		hijoSEMITurnR.st.orientacion = (hijoSEMITurnR.st.orientacion + 1) % 8;
+
+		hijoSEMITurnR.st.coste += calcularCoste(hijoSEMITurnR.st, actSEMITURN_R);
+		hijoSEMITurnR.st.fn = hijoSEMITurnR.st.coste + heuristica(origen,destino);
+
+		if (Cerrados.find(hijoSEMITurnR.st) == Cerrados.end())
+		{
+			hijoSEMITurnR.secuencia.push_back(actSEMITURN_R);
+			Abiertos.push(hijoSEMITurnR);
+		}
+		//cout << "Cuarta comprobacion" << endl;
+		// Generar descendiente de girar a la izquierda 90 grados
+		nodo hijoTurnL = current;
+		hijoTurnL.st.orientacion = (hijoTurnL.st.orientacion + 6) % 8;
+
+		hijoTurnL.st.coste += calcularCoste(hijoTurnL.st ,actTURN_L);
+		hijoTurnL.st.fn = hijoTurnL.st.coste + heuristica(origen,destino);
+
+		if (Cerrados.find(hijoTurnL.st) == Cerrados.end())
+		{
+			hijoTurnL.secuencia.push_back(actTURN_L);
+			Abiertos.push(hijoTurnL);
+		}
+
+		//cout << "Quinta comprobacion" << endl;
+		// Generar descendiente de girar a la izquierda 45 grados
+		nodo hijoSEMITurnL = current;
+		hijoSEMITurnL.st.orientacion = (hijoSEMITurnL.st.orientacion + 7) % 8;
+
+		hijoSEMITurnL.st.coste += calcularCoste(hijoSEMITurnL.st ,actSEMITURN_L);
+		hijoSEMITurnL.st.fn = hijoSEMITurnL.st.coste + heuristica(origen,destino);
+
+		if (Cerrados.find(hijoSEMITurnL.st) == Cerrados.end())
+		{
+			hijoSEMITurnL.secuencia.push_back(actSEMITURN_L);
+			Abiertos.push(hijoSEMITurnL);
+		}
+
+		//cout << "Sexta comprobacion" << endl;
+		// Generar descendiente de avanzar
+		nodo hijoForward = current;
+
+		hijoForward.st.coste += calcularCoste(hijoForward.st, actFORWARD);
+		hijoForward.st.fn = hijoForward.st.coste + heuristica(origen,destino);
+
+		if (!HayObstaculoDelante(hijoForward.st))
+		{
+			if (Cerrados.find(hijoForward.st) == Cerrados.end())
+			{
+				hijoForward.secuencia.push_back(actFORWARD);
+				Abiertos.push(hijoForward);
+			}
+		}
+
+		// Tomo el siguiente valor de la Abiertos
+		if (!Abiertos.empty())
+		{
+			current = Abiertos.top();
+			//cout << "Antes del while -> "<< Abiertos.size() << endl;
+			while(Cerrados.find(current.st) != Cerrados.end() && !Abiertos.empty()){
+				//cout << Abiertos.size() << endl;
+				Abiertos.pop();
+				if(!Abiertos.empty())
+					current = Abiertos.top();
+			}
+
+			
+		}
+
+		//cout << "Ultima comprobacion" << endl;
+	}
+
+	cout << "Terminada la busqueda\n";
+
+	if (current.st.fila == destino.fila and current.st.columna == destino.columna)
+	{
+		cout << "Cargando el plan\n";
+		plan = current.secuencia;
+		cout << "Longitud del plan: " << plan.size() << endl;
+		PintaPlan(plan);
+		// ver el plan en el mapa
+		VisualizaPlan(origen, plan);
+		return true;
+	}
+	else
+	{
+		cout << "No encontrado plan\n";
+	}
+
+	return false;
+
+
+}
+
+
 // Sacar por la consola la secuencia del plan obtenido
 void ComportamientoJugador::PintaPlan(list<Action> plan)
 {
@@ -697,6 +1077,206 @@ void ComportamientoJugador::PintaPlan(list<Action> plan)
 		it++;
 	}
 	cout << endl;
+}
+
+void ComportamientoJugador::pintarMapa(Sensores sensores, estado &st){
+
+	mapaResultado[st.fila][st.columna] = sensores.terreno[0];
+
+	switch(st.orientacion){
+
+		case 0: 
+			mapaResultado[st.fila-1][st.columna-1] = sensores.terreno[1];
+			mapaResultado[st.fila-1][st.columna] = sensores.terreno[2];
+			mapaResultado[st.fila-1][st.columna+1] = sensores.terreno[3];
+			mapaResultado[st.fila-2][st.columna-2] = sensores.terreno[4];
+			mapaResultado[st.fila-2][st.columna-1] = sensores.terreno[5];
+			mapaResultado[st.fila-2][st.columna] = sensores.terreno[6];
+			mapaResultado[st.fila-2][st.columna+1] = sensores.terreno[7];
+			mapaResultado[st.fila-2][st.columna+2] = sensores.terreno[8];
+			mapaResultado[st.fila-3][st.columna-3] = sensores.terreno[9];
+			mapaResultado[st.fila-3][st.columna-2] = sensores.terreno[10];
+			mapaResultado[st.fila-3][st.columna-1] = sensores.terreno[11];
+			mapaResultado[st.fila-3][st.columna] = sensores.terreno[12];
+			mapaResultado[st.fila-3][st.columna+1] = sensores.terreno[13];
+			mapaResultado[st.fila-3][st.columna+2] = sensores.terreno[14];
+			mapaResultado[st.fila-3][st.columna+3] = sensores.terreno[15];
+		break;
+
+		case 1: 
+			mapaResultado[st.fila-1][st.columna] = sensores.terreno[1];
+			mapaResultado[st.fila-1][st.columna+1] = sensores.terreno[2];
+			mapaResultado[st.fila][st.columna+1] = sensores.terreno[3];
+			mapaResultado[st.fila-2][st.columna] = sensores.terreno[4];
+			mapaResultado[st.fila-2][st.columna+1] = sensores.terreno[5];
+			mapaResultado[st.fila-2][st.columna+2] = sensores.terreno[6];
+			mapaResultado[st.fila-1][st.columna+2] = sensores.terreno[7];
+			mapaResultado[st.fila][st.columna+2] = sensores.terreno[8];
+			mapaResultado[st.fila-3][st.columna] = sensores.terreno[9];
+			mapaResultado[st.fila-3][st.columna+1] = sensores.terreno[10];
+			mapaResultado[st.fila-3][st.columna+2] = sensores.terreno[11];
+			mapaResultado[st.fila-3][st.columna+3] = sensores.terreno[12];
+			mapaResultado[st.fila-2][st.columna+3] = sensores.terreno[13];
+			mapaResultado[st.fila-1][st.columna+3] = sensores.terreno[14];
+			mapaResultado[st.fila][st.columna+3] = sensores.terreno[15];
+		break;
+
+		case 2: 
+			mapaResultado[st.fila-1][st.columna+1] = sensores.terreno[1];
+			mapaResultado[st.fila][st.columna+1] = sensores.terreno[2];
+			mapaResultado[st.fila+1][st.columna+1] = sensores.terreno[3];
+			mapaResultado[st.fila-2][st.columna+2] = sensores.terreno[4];
+			mapaResultado[st.fila-1][st.columna+2] = sensores.terreno[5];
+			mapaResultado[st.fila][st.columna+2] = sensores.terreno[6];
+			mapaResultado[st.fila+1][st.columna+2] = sensores.terreno[7];
+			mapaResultado[st.fila+2][st.columna+2] = sensores.terreno[8];
+			mapaResultado[st.fila-3][st.columna+3] = sensores.terreno[9];
+			mapaResultado[st.fila-2][st.columna+3] = sensores.terreno[10];
+			mapaResultado[st.fila-1][st.columna+3] = sensores.terreno[11];
+			mapaResultado[st.fila][st.columna+3] = sensores.terreno[12];
+			mapaResultado[st.fila+1][st.columna+3] = sensores.terreno[13];
+			mapaResultado[st.fila+2][st.columna+3] = sensores.terreno[14];
+			mapaResultado[st.fila+3][st.columna+3] = sensores.terreno[15];
+		break;
+			
+		case 3: 
+			mapaResultado[st.fila][st.columna+1] = sensores.terreno[1];
+			mapaResultado[st.fila+1][st.columna+1] = sensores.terreno[2];
+			mapaResultado[st.fila+1][st.columna] = sensores.terreno[3];
+			mapaResultado[st.fila][st.columna+2] = sensores.terreno[4];
+			mapaResultado[st.fila+1][st.columna+2] = sensores.terreno[5];
+			mapaResultado[st.fila+2][st.columna+2] = sensores.terreno[6];
+			mapaResultado[st.fila+2][st.columna+1] = sensores.terreno[7];
+			mapaResultado[st.fila+2][st.columna] = sensores.terreno[8];
+			mapaResultado[st.fila][st.columna+3] = sensores.terreno[9];
+			mapaResultado[st.fila+1][st.columna+3] = sensores.terreno[10];
+			mapaResultado[st.fila+2][st.columna+3] = sensores.terreno[11];
+			mapaResultado[st.fila+3][st.columna+3] = sensores.terreno[12];
+			mapaResultado[st.fila+3][st.columna+2] = sensores.terreno[13];
+			mapaResultado[st.fila+3][st.columna+1] = sensores.terreno[14];
+			mapaResultado[st.fila+3][st.columna] = sensores.terreno[15];
+		break;
+
+		case 4: 
+			mapaResultado[st.fila+1][st.columna+1] = sensores.terreno[1];
+			mapaResultado[st.fila+1][st.columna] = sensores.terreno[2];
+			mapaResultado[st.fila+1][st.columna-1] = sensores.terreno[3];
+			mapaResultado[st.fila+2][st.columna+2] = sensores.terreno[4];
+			mapaResultado[st.fila+2][st.columna+1] = sensores.terreno[5];
+			mapaResultado[st.fila+2][st.columna] = sensores.terreno[6];
+			mapaResultado[st.fila+2][st.columna-1] = sensores.terreno[7];
+			mapaResultado[st.fila+2][st.columna-2] = sensores.terreno[8];
+			mapaResultado[st.fila+3][st.columna+3] = sensores.terreno[9];
+			mapaResultado[st.fila+3][st.columna+2] = sensores.terreno[10];
+			mapaResultado[st.fila+3][st.columna+1] = sensores.terreno[11];
+			mapaResultado[st.fila+3][st.columna] = sensores.terreno[12];
+			mapaResultado[st.fila+3][st.columna-1] = sensores.terreno[13];
+			mapaResultado[st.fila+3][st.columna-2] = sensores.terreno[14];
+			mapaResultado[st.fila+3][st.columna-3] = sensores.terreno[15];
+		break;
+
+		case 5: 
+			mapaResultado[st.fila+1][st.columna] = sensores.terreno[1];
+			mapaResultado[st.fila+1][st.columna-1] = sensores.terreno[2];
+			mapaResultado[st.fila][st.columna-1] = sensores.terreno[3];
+			mapaResultado[st.fila+2][st.columna] = sensores.terreno[4];
+			mapaResultado[st.fila+2][st.columna-1] = sensores.terreno[5];
+			mapaResultado[st.fila+2][st.columna-2] = sensores.terreno[6];
+			mapaResultado[st.fila+1][st.columna-2] = sensores.terreno[7];
+			mapaResultado[st.fila][st.columna-2] = sensores.terreno[8];
+			mapaResultado[st.fila+3][st.columna] = sensores.terreno[9];
+			mapaResultado[st.fila+3][st.columna-1] = sensores.terreno[10];
+			mapaResultado[st.fila+3][st.columna-2] = sensores.terreno[11];
+			mapaResultado[st.fila+3][st.columna-3] = sensores.terreno[12];
+			mapaResultado[st.fila+2][st.columna-3] = sensores.terreno[13];
+			mapaResultado[st.fila+1][st.columna-3] = sensores.terreno[14];
+			mapaResultado[st.fila][st.columna-3] = sensores.terreno[15];
+		break;
+
+		case 6: 
+			mapaResultado[st.fila+1][st.columna-1] = sensores.terreno[1];
+			mapaResultado[st.fila][st.columna-1] = sensores.terreno[2];
+			mapaResultado[st.fila-1][st.columna-1] = sensores.terreno[3];
+			mapaResultado[st.fila+2][st.columna-2] = sensores.terreno[4];
+			mapaResultado[st.fila+1][st.columna-2] = sensores.terreno[5];
+			mapaResultado[st.fila][st.columna-2] = sensores.terreno[6];
+			mapaResultado[st.fila-1][st.columna-2] = sensores.terreno[7];
+			mapaResultado[st.fila-2][st.columna-2] = sensores.terreno[8];
+			mapaResultado[st.fila+3][st.columna-3] = sensores.terreno[9];
+			mapaResultado[st.fila+2][st.columna-3] = sensores.terreno[10];
+			mapaResultado[st.fila+1][st.columna-3] = sensores.terreno[11];
+			mapaResultado[st.fila][st.columna-3] = sensores.terreno[12];
+			mapaResultado[st.fila-1][st.columna-3] = sensores.terreno[13];
+			mapaResultado[st.fila-2][st.columna-3] = sensores.terreno[14];
+			mapaResultado[st.fila-3][st.columna-3] = sensores.terreno[15];
+		break;
+
+		case 7: 
+			mapaResultado[st.fila][st.columna-1] = sensores.terreno[1];
+			mapaResultado[st.fila-1][st.columna-1] = sensores.terreno[2];
+			mapaResultado[st.fila-1][st.columna] = sensores.terreno[3];
+			mapaResultado[st.fila][st.columna-2] = sensores.terreno[4];
+			mapaResultado[st.fila-1][st.columna-2] = sensores.terreno[5];
+			mapaResultado[st.fila-2][st.columna-2] = sensores.terreno[6];
+			mapaResultado[st.fila-2][st.columna-1] = sensores.terreno[7];
+			mapaResultado[st.fila-2][st.columna] = sensores.terreno[8];
+			mapaResultado[st.fila][st.columna-3] = sensores.terreno[9];
+			mapaResultado[st.fila-1][st.columna-3] = sensores.terreno[10];
+			mapaResultado[st.fila-2][st.columna-3] = sensores.terreno[11];
+			mapaResultado[st.fila-3][st.columna-3] = sensores.terreno[12];
+			mapaResultado[st.fila-3][st.columna-2] = sensores.terreno[13];
+			mapaResultado[st.fila-3][st.columna-1] = sensores.terreno[14];
+			mapaResultado[st.fila-3][st.columna] = sensores.terreno[15];
+		break;
+
+
+	}
+}
+
+bool ComportamientoJugador::puedoAvanzar(Sensores sensores, estado &st) {
+    if(sensores.terreno[2] == 'T' or sensores.terreno[2] == 'S' or sensores.terreno[2] == 'K' or
+        sensores.terreno[2] == 'X' or sensores.terreno[2] == 'D' or (sensores.terreno[2] == 'B' and tengoZapatillas)
+        or (sensores.terreno[2] == 'A' and tengoBikini)){
+
+            return true;
+    }
+    else {
+
+        return false;
+    }
+	// return (sensores.terreno[2] != 'P' and sensores.terreno[2] != 'M' and (sensores.terreno[2] != 'B' or tengoZapatillas) and (sensores.terreno[2] != 'A' or tengoBikini));
+}
+
+estado ComportamientoJugador::obtenerDestino() {
+
+	estado salida;
+	bool encontrado = false;
+
+	for (i = 3; i < mapaResultado.size() - 3 && !encontrado; i++) {
+		for (j = 3; j < mapaResultado[0].size() - 3 && !encontrado; j++) {
+
+			if(mapaResultado[i][j] == '?') {
+
+				salida.fila = i;
+				salida.columna = j;
+				encontrado = true;
+			}
+		}
+
+	}
+
+	if(!encontrado) {
+			salida.fila = rand() % (mapaResultado.size() -1);
+			salida.columna = rand() % (mapaResultado[0].size()-1);
+
+	}
+
+	// salida.fila = rand() % (mapaResultado.size() -1);
+	// salida.columna = rand() % (mapaResultado[0].size()-1);
+
+	cout << "mi destino es fila " << salida.fila << " columna " << salida.columna << endl;
+
+	return salida;
 }
 
 // Funcion auxiliar para poner a 0 todas las casillas de una matriz
