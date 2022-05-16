@@ -64,20 +64,12 @@ Action ComportamientoJugador::think(Sensores sensores)
 	}
 	else {
 
+		estado destino;
+
 		if(!hayPlan) {
 
-			destino_anterior.fila = destino.fila;
-			destino_anterior.columna = destino.columna;
-			cout << "el destino anterior es " << destino_anterior.fila << destino_anterior.columna << endl;
 			destino = obtenerDestino();
 			cout << "el destino nuevo es " << destino.fila << destino.columna << endl;
-
-			if(destino.fila == destino_anterior.fila && destino.columna == destino_anterior.columna){
-
-				destino = obtenerDestinoAleatorio();
-				cout << "destino aleatorio" << endl;
-			}
-
 			hayPlan = pathFinding_AEstrella_migue(actual, destino, plan);
 			
 

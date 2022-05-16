@@ -38,8 +38,7 @@ class ComportamientoJugador : public Comportamiento {
   private:
     // Declarar Variables de Estado
     estado actual;
-    estado destino;
-		estado destino_anterior;
+
     list<estado> objetivos;
     list<Action> plan;
     bool hayPlan;
@@ -47,6 +46,7 @@ class ComportamientoJugador : public Comportamiento {
     bool tengoBikini;
     bool tengoZapatillas;
     int i, j;
+    int contador;
 
     // Métodos privados de la clase
     bool pathFinding(int level, const estado &origen, const list<estado> &destino, list<Action> &plan);
